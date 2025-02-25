@@ -15,12 +15,15 @@ function [pcaParams, reducedFeatures] = applyPCA(X)
     
     % Calculate explained variance ratio
     explainedVar=100*eigValues/sum(eigValues);
-    
-    % Select number of components that explain 95% of variance
-    numComponents=find(explainedVar>=0.95, 1);
 
     % Calculate cuumulative variance
     cumVar=cumsum(explainedVar);
+    
+    % Select number of components that explain 95% of variance and ensure
+    % we have at least 2 components
+    numComponents=find(cumVar>=0.95, 1);
+    numComponents=max(numComponents,2)
+
     
     % Get projection matrix
     pcaParams.projectionMatrix=eigVectors(:, 1:numComponents);
@@ -32,3 +35,4 @@ function [pcaParams, reducedFeatures] = applyPCA(X)
     % Project data onto principal components
     reducedFeatures=X*pcaParams.projectionMatrix;
 end
+    
