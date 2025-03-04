@@ -1,4 +1,4 @@
-function [binnedSpikes, binnedHandPos] = preprocessData(trial_data)
+function [binnedSpikes, binnedHandPos] = preprocessData(trial_data,numTrials,numAngles)
     [numTrials, numAngles]=size(trial_data);
     binnedSpikes=cell(numTrials, numAngles);
     binnedHandPos=cell(numTrials, numAngles);
