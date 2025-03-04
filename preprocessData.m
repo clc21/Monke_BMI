@@ -1,7 +1,8 @@
-function [binnedSpikes, binnedHandPos] = preprocessData(trial_data,numTrials,numAngles)
-    [numTrials, numAngles]=size(trial_data);
+function [binnedSpikes, binnedHandPos,activeNeuronsIdx] = preprocessData(trial_data,numTrials,numAngles)
+    % [numTrials, numAngles]=size(trial_data);
     binnedSpikes=cell(numTrials, numAngles);
     binnedHandPos=cell(numTrials, numAngles);
+    activeNeuronsIdx=cell(numTrials,numAngles);
     
     for trialId=1:numTrials
         for angleId=1:numAngles
@@ -16,13 +17,19 @@ function [binnedSpikes, binnedHandPos] = preprocessData(trial_data,numTrials,num
             % Extract relevant spike data and hand positions
             spikeData=currentTrial.spikes(:, startId:endId);
             handposData=currentTrial.handPos(:, startId:endId);
+
+            % Removing inactive neurons
+            spikePerNeuron=sum(spikeData,2);
+            activeNeurons=(spikePerNeuron>0);
+            activeNeuronsIdx{trialId,angleId}=find(activeNeurons);
+            spikeData=spikeData(activeNeurons,:);
             
             % Number of bins (10ms per bin)
             numBins=floor((endId-startId+1)/10);
             
             % Initialize binned data
-            numNeurons=size(spikeData, 1);
-            binnedSpikesMatrix=zeros(numNeurons, numBins);
+            numActiveNeurons=sum(activeNeurons);
+            binnedSpikesMatrix=zeros(numActiveNeurons, numBins);
             binnedHandPosMatrix=zeros(3, numBins);
             
             % Bin the data
@@ -32,10 +39,13 @@ function [binnedSpikes, binnedHandPos] = preprocessData(trial_data,numTrials,num
                 binEndId=binId*10;
                 
                 % Sum spikes in each 10ms bin
-                binnedSpikesMatrix(:, binId)=sum(spikeData(:, binStartId:binEndId), 2);
-                
-                % Take average hand position in each 10ms bin
-                binnedHandPosMatrix(:, binId)=mean(handposData(:, binStartId:binEndId), 2);
+                if binEndId<=size(spikeData, 2)
+                    % Sum spikes in each 10ms bin (only for active neurons)
+                    binnedSpikesMatrix(:, binId)=sum(spikeData(:, binStartId:binEndId), 2);
+                    
+                    % Take average hand position in each 10ms bin
+                    binnedHandPosMatrix(:, binId)=mean(handposData(:, binStartId:binEndId), 2);
+                end
             end
             
             % Store binned data
