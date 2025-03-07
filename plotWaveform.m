@@ -1,14 +1,15 @@
-function plotWaveform(M,s,name)
+function plotWaveform(M,fs,s,name)
 %UNTITLED2 Summary of this function goes here
 %   M x N for M (row) signals and N (col) timesteps
 arguments
     M 
+    fs double
     s double = 0.7  % vertical separation 
     name char = 'Give plot a name'
 end
 
 % th = 0.0048;
-time = 0:size(M,2)-1;
+time = 0:1/fs:(size(M,2)-1)/fs;
 
 vline = 1:size(M,1);
 centres = 1-vline*s;
