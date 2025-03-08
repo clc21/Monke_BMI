@@ -44,4 +44,3 @@ end
     % Project data onto principal components
     reducedFeatures=X*pcaParams.projectionMatrix;
 end
-    
