@@ -30,7 +30,7 @@ classdef ImprovedKalmanFilter < handle
         function obj = ImprovedKalmanFilter(alpha, bin_size, args)
             arguments
                 alpha double = 0.1
-                bin_size double = 20
+                bin_size double = 70
                 args.plot logical = false
             end
             
