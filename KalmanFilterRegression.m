@@ -24,18 +24,21 @@ classdef KalmanFilterRegression < handle
         X   % state estimate
         alpha double    % learning rate for system identification
         sysID logical
+        n_states
     end
 
     methods
         function obj = KalmanFilterRegression(alpha,args)
             arguments
                 alpha double = 0.1;
+                args.binSize double = 20; %in ms
                 args.plot logical = false;
             end
             n_neurons = 98;
-            n_states = 2;  % disp,vel,accel
+            n_states = 6;  % disp,vel,accel
+            obj.n_states = n_states;
             obj.plotLC = args.plot;
-            obj.k = 0;
+            obj.k = 0; 
             obj.sysID = false;
             obj.n_trials = 0;
 
@@ -45,10 +48,18 @@ classdef KalmanFilterRegression < handle
             obj.RMSE_history = [];
             obj.RMSe = [];
 
-            obj.A = zeros(n_states);               
+             % Initialize state transition matrix with velocity and acceleration model
+            dt = args.binSize/1000; % convert bin size to seconds
+            dt2 = 0.5*dt^2;
+            obj.A = [1 0 dt 0  dt2 0;
+                     0 1 0  dt 0   dt2;
+                     0 0 1  0  dt  0;
+                     0 0 0  1  0   dt;
+                     0 0 0  0  1   0;
+                     0 0 0  0  0   1];               
             obj.H = zeros(n_neurons,n_states);  
-            obj.W = zeros(n_states,n_states); 
-            obj.Q = zeros(n_neurons,n_neurons); 
+            obj.W = eye(n_states) * 0.01; 
+            obj.Q = eye(n_neurons) * 0.1;
             obj.P = eye(n_states) * 0.1;
             obj.X = zeros(n_states,1);      % Initial state estimate
             obj.K = zeros(n_states,n_neurons);
@@ -72,12 +83,14 @@ classdef KalmanFilterRegression < handle
             % Train Kalman Filter Decoder [row,col]
             % Z_train: [n_neurons,n_samples] - Neural data
             % X_train: [n_outputs,n_samples] - Outputs to predict
-            if ~obj.sysID
-                obj.sysID = true;
-                a = 1;
-            else
-                a = obj.alpha;
-            end
+            % if ~obj.sysID
+            %     obj.sysID = true;
+            %     a = 1;
+            % else
+            %     a = obj.alpha;
+            % end
+
+            a = obj.alpha;
 
             M = size(X_train,2);  % n_samples
 
@@ -100,8 +113,12 @@ classdef KalmanFilterRegression < handle
         end
 
         function obj = predict(obj,Z_train,X_train)
-            obj.X = X_train(:,1);
-            obj.clearLCData();
+            % obj.X = X_train(:,1);
+
+            obj.Xpred = [];
+            obj.Xtrue = [];
+            obj.RMSE_history = [];
+
             k_steps = size(X_train, 2);
 
             for t = 1:k_steps
@@ -135,41 +152,55 @@ classdef KalmanFilterRegression < handle
             % Update state estimate
             obj.X = X_pred + obj.K * (Z - obj.H * X_pred);
 
-            obj.Xpred(:,end+1) = obj.X;
-            obj.Xtrue(:,end+1) = X_true;
+            % Save the Position states only
+            obj.Xpred(:,end+1) = obj.X(1:2,:);
+            obj.Xtrue(:,end+1) = X_true(1:2,:);
         
-            % Compute RMSE
-            error = X_true - obj.X;
+            % Compute RMSE for position only
+            error = X_true(1:2,:) - obj.X(1:2,:);
             rmse = sqrt(mean(error.^2));
             obj.RMSE_history(end+1) = rmse;
             obj.k = obj.k + 1;
         end
-        function plotValues(obj)
+        function plotValues(obj,RMSEperTrial)
+            arguments
+                obj
+                RMSEperTrial logical = true;
+            end
             time = size(obj.Xtrue,2);
             figure(1);
             clf(1);
             subplot(1,2,1);
             hold on
-            plot(1:time,obj.Xpred,LineWidth=1.0,Color='b');
+            plot(1:time,obj.Xpred,LineWidth=1.5,Color='b');
             hold on
-            plot(1:time,obj.Xtrue,'LineStyle','--',LineWidth=2.0,Color='r');
-            legend({'Xpred','Ypred','Xreal','Yreal'});
+            plot(1:time,obj.Xtrue,'LineStyle','--',LineWidth=1.0,Color='r');
+            xlabel('time bins / window')
+            ylabel('XY positions / cm')
+            legend({'Xpred','Ypred','Xreal','Yreal'},Location="northwest");
+
             title('Real vs Predicted values');
 
             subplot(1,2,2);
-            rms_t = 1:length(obj.RMSe);
             hold on
-            plot(rms_t,obj.RMSe,LineWidth=1.0,Color='g');
-            title('RMSe per trial');
+            if RMSEperTrial
+                rms_t = 1:length(obj.RMSe);
+                plot(rms_t,obj.RMSe,LineWidth=1.0,Color='g');
+                title('RMSe per trial');
+                xlabel('Trial number');
+            else
+                plot(1:time,obj.RMSE_history,'LineStyle','-',LineWidth=1.0,Color='g');
+                title('RMSe in trial');
+                xlabel('time bins / window')
+            end
+            ylabel('RMSe /cm')
+
         end
-        function obj = clearLCData(obj)
-            obj.Xpred = [];
-            obj.Xtrue = [];
-            obj.RMSE_history = [];
+        function obj = clearRMSe(obj)
+            obj.RMSe = [];
         end
-        function obj = clearK(obj)
-            obj.Kx = [];
-            obj.Ky = [];
+        function obj = setInitialPos(obj,XYpos)
+            obj.X = cat(1,XYpos,zeros(obj.n_states-2,1));
         end
     end
 end

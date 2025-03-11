@@ -1,26 +1,20 @@
 % load("monkeydata_training.mat")
 
-Kalman = KalmanFilterRegression(0.2);
+% Kalman = KalmanFilterRegression(0.1);
 %%
 angle=1;
-for t=1:70
-    [meanSpikeRate,~,meanHandPos,~,time_bins] = extract(trial(t,:),angle,'winStp',20,'winSz',20);
-    Kalman.fit(meanSpikeRate,meanHandPos(1:2,:));
-    Kalman.predict(meanSpikeRate,meanHandPos(1:2,:));
+for t=1:100
+    [spikeRate,handKinematics,time_bins] = extractWindows(trial,t,angle,winStp=20,winSz=20);
+    Kalman.setInitialPos(handKinematics(1:2,1));
+    Kalman.fit(spikeRate,handKinematics);
+    Kalman.predict(spikeRate,handKinematics);
     disp(['angle grp:',num2str(angle),'   trial:',num2str(t)]);
-    Kalman.plotValues();
+    Kalman.plotValues(true);
+    
 
-
-    % subplot(1,2,1)
-    % hold on
-    % plot(Kalman.Kx');
-    % title('Kalman filter coeff for pos X')
-    % subplot(1,2,2)
-    % hold on
-    % plot(Kalman.Ky')
-    % title('Kalman filter coeff for pos Y')
-    pause(0.5);
+    pause(0.1);
 end
+Kalman.clearRMSe();
 % figure(2);
 % plot(Kalman.RMSe);
 % title('RMSe per trial')
