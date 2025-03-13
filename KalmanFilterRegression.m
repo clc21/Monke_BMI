@@ -30,14 +30,14 @@ classdef KalmanFilterRegression < handle
     end
 
     methods
-        function obj = KalmanFilterRegression(alpha,args)
+        function obj = KalmanFilterRegression(args)
             arguments
-                alpha double = 0.1;
-                args.binSize double = 10; %in ms
-                args.plot logical = false;
+                args.alpha double = 0.1;
+                args.n_neurons double = 98;
+                args.binSize double = 10;  %in ms
                 args.delaySteps double = 0;
             end
-            n_neurons = 98;
+            n_neurons = args.n_neurons;
             n_states = 6;  % disp,vel,accel
             obj.n_states = n_states;
             obj.kloop = 0; 
@@ -70,7 +70,7 @@ classdef KalmanFilterRegression < handle
             obj.X = zeros(n_states,1);      % Initial state estimate
             obj.K = zeros(n_states,n_neurons);
 
-            obj.alpha = alpha;
+            obj.alpha = args.alpha;
         end
 
         function value = get.model(obj)

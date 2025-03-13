@@ -1,6 +1,6 @@
 % load("monkeydata_training.mat")
 
-Kalman = KalmanFilterRegression();
+Kalman = KalmanFilterRegression(n_neurons=98,alpha=0.1,binSize=10,delaySteps=0);  % default values
 %%
 angle=4;
 for t=1:100
