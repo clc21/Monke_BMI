@@ -82,7 +82,6 @@ classdef KalmanFilterRegression < handle
             mod.X = obj.X;      % Initial state estimate
             mod.K = obj.K;
             value = mod;
-
         end
 
         function obj = fit(obj, Z_train, X_train)
@@ -119,22 +118,25 @@ classdef KalmanFilterRegression < handle
         end
 
         function obj = predict(obj,Z_train,X_train)
-            % obj.X = X_train(:,1);
+            arguments
+                obj
+                Z_train
+                X_train = false; 
 
-            obj.Xpred = [];
-            obj.Xtrue = [];
-            obj.RMSE_history = [];
+            end
+            obj.clearHistory();
 
             k_steps = size(X_train, 2);
 
             for t = 1:k_steps
-                obj.updateLoop(Z_train(:, t), X_train(:, t));     
+                if X_train
+                    obj.updateLoop(Z_train(:, t), X_train(:, t));  
+                else
+                    obj.updateLoop(Z_train(:, t),X_train);  
+                end
             end
             obj.RMSe(end+1) = mean(obj.RMSE_history);
             obj.n_trials = obj.n_trials+1;
-
-            % obj.Kx(:,end+1) = obj.K(1,:)';
-            % obj.Ky(:,end+1) = obj.K(2,:)';
         end
 
         function obj = updateLoop(obj, Z, X_true)
@@ -172,13 +174,14 @@ classdef KalmanFilterRegression < handle
 
             % Save the Position states only
             obj.Xpred(:,end+1) = obj.X(1:2,:);
-            obj.Xtrue(:,end+1) = X_true(1:2,:);
-        
-            % Compute RMSE for position only
-            error = X_true(1:2,:) - obj.X(1:2,:);
-            rmse = sqrt(mean(error.^2));
-            obj.RMSE_history(end+1) = rmse;
-            obj.kloop = obj.kloop + 1;
+
+            if X_true 
+                obj.Xtrue(:,end+1) = X_true(1:2,:);
+
+                % Compute RMSE for position only
+                error = X_true(1:2,:) - obj.X(1:2,:);
+                obj.RMSE_history(end+1) = sqrt(mean(error.^2));
+            end
         end
         function plotValues(obj,RMSEperTrial)
             arguments
@@ -217,8 +220,34 @@ classdef KalmanFilterRegression < handle
         function obj = clearRMSe(obj)
             obj.RMSe = [];
         end
+        function obj = clearHistory(obj)
+            obj.Xpred = [];
+            obj.Xtrue = [];
+            obj.RMSE_history = [];
+        end
+        function [Xpred,RMSe] = getTrialHistory(obj)
+            Xpred = obj.Xpred;
+            RMSe = obj.RMSE_history;
+        end
         function obj = setInitialPos(obj,XYpos)
             obj.X = cat(1,XYpos,zeros(obj.n_states-2,1));
+        end
+        function obj = addModel(obj,model)
+            arguments
+                obj
+                model (1,1) struct
+            end
+            obj.A = model.A;               
+            obj.H = model.H;  
+            obj.W = model.W; 
+            obj.Q = model.Q; 
+            obj.P = model.P;
+            obj.X = model.X;      % Initial state estimate
+            obj.K = model.K;
+        end
+        function [X,Y] = getHandPos(obj)
+            X = obj.X(1,:);
+            Y = obj.X(2,:);
         end
     end
 end
