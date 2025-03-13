@@ -4,15 +4,14 @@ classdef KalmanFilterRegression < handle
         model
     end
     properties
-        k    % time steps trained
+        kloop    % time steps trained
         n_trials
         Kx
         Ky
         RMSE_history
         RMSe
         Xpred
-        Xtrue
-        plotLC
+        
     end
     properties (Access = private)
         A   % state transition matrix (nxn)
@@ -25,22 +24,29 @@ classdef KalmanFilterRegression < handle
         alpha double    % learning rate for system identification
         sysID logical
         n_states
+        delayStp
+        Xtrue
+        measurementBuffer
     end
 
     methods
         function obj = KalmanFilterRegression(alpha,args)
             arguments
                 alpha double = 0.1;
-                args.binSize double = 20; %in ms
+                args.binSize double = 10; %in ms
                 args.plot logical = false;
+                args.delaySteps double = 0;
             end
             n_neurons = 98;
             n_states = 6;  % disp,vel,accel
             obj.n_states = n_states;
-            obj.plotLC = args.plot;
-            obj.k = 0; 
+            obj.kloop = 0; 
             obj.sysID = false;
             obj.n_trials = 0;
+
+            % Initialize delay buffer
+            obj.delayStp = args.delaySteps;
+            obj.measurementBuffer = [];
 
             % Initialize history tracking
             obj.Kx = [];
@@ -135,8 +141,20 @@ classdef KalmanFilterRegression < handle
             % Recursive update step
             % Z: Neural activity (spike counts) at current timestep
             % X_true: True state (X and Y pos)
-
+            obj.measurementBuffer = [obj.measurementBuffer, Z];
             regInv = eye(size(obj.Q)) * 1e-6;
+
+            % Check if enough measurements have been buffered
+            if size(obj.measurementBuffer,2) > obj.delayStp
+                % Retrieve delayed measurement
+                Z_delayed = obj.measurementBuffer(:, 1);
+                
+                % Remove used measurement from buffer
+                obj.measurementBuffer(:, 1) = [];
+            else
+                % If buffer is not full, skip update
+                Z_delayed = zeros(size(Z));
+            end
 
             % Time update %
             % ----------- %
@@ -150,7 +168,7 @@ classdef KalmanFilterRegression < handle
             % Update estimate uncertainty
             obj.P = (eye(size(obj.P)) - obj.K * obj.H) * P_pred;
             % Update state estimate
-            obj.X = X_pred + obj.K * (Z - obj.H * X_pred);
+            obj.X = X_pred + obj.K * (Z_delayed - obj.H * X_pred);
 
             % Save the Position states only
             obj.Xpred(:,end+1) = obj.X(1:2,:);
@@ -160,7 +178,7 @@ classdef KalmanFilterRegression < handle
             error = X_true(1:2,:) - obj.X(1:2,:);
             rmse = sqrt(mean(error.^2));
             obj.RMSE_history(end+1) = rmse;
-            obj.k = obj.k + 1;
+            obj.kloop = obj.kloop + 1;
         end
         function plotValues(obj,RMSEperTrial)
             arguments

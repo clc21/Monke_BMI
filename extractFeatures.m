@@ -1,18 +1,19 @@
-function [spikeRate,handKinematics,time_bins] = extractWindows(trial,trialNumber,angle,args)
+function [spikeRate,handKinematics,time_bins] = extractFeatures(trial,args)
 %extractWindows Extract the spike rate, hand Pos&Vel&Acc in time windows
 %   trial
 arguments
     trial struct
-    trialNumber double
-    angle double
-    args.isStruct logical = true
-    args.winSz double = 20  % ms
-    args.winStp double = 20
+    args.trialNumber double = 0
+    args.angle double = 0
+    args.isStruct logical = false
+    args.winSz double = 10  % Window size in ms
+    args.winStp double = 10 % Window step in ms
+    args.sigma double = 30  % Standard deviation for Gaussian smoothing (in ms)
 end
 
 if args.isStruct
-    spike_train = trial(trialNumber,angle).spikes;
-    pos_array = trial(trialNumber,angle).handPos;
+    spike_train = trial(args.trialNumber,args.angle).spikes;
+    pos_array = trial(args.trialNumber,args.angle).handPos;
 else
     spike_train = trial.spikes;
     pos_array = trial.handPos;
@@ -60,6 +61,21 @@ for w = 1:n_wind
     time_bins(w) = time_range(round((t_start + t_end) / 2));
 end
 
+% Apply Gaussian smoothing to spike rates
+spikeRate = applyGaussianFilter(spikeRate, args.sigma, args.winSz);
+
 handKinematics = cat(1,handPos(1:2,:),handVel(1:2,:),handAcc(1:2,:));
 
+end
+
+%% Function to Apply Gaussian Smoothing
+function smoothedSpikeRate = applyGaussianFilter(spikeRate, sigma, winSz)
+    % Create Gaussian kernel
+    kernelSize = ceil(3 * sigma / winSz) * 2 + 1;  % Ensure it's odd
+    t = linspace(-kernelSize / 2, kernelSize / 2, kernelSize);
+    gaussKernel = exp(-t.^2 / (2 * sigma^2));
+    gaussKernel = gaussKernel / sum(gaussKernel);  % Normalize
+
+    % Apply convolution along the time dimension (2nd axis)
+    smoothedSpikeRate = conv2(spikeRate, gaussKernel, 'same');
 end
