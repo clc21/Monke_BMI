@@ -11,7 +11,7 @@ classdef KalmanFilterRegression < handle
         RMSE_history
         RMSe
         Xpred
-        
+        Xhist    
     end
     properties (Access = private)
         A   % state transition matrix (nxn)
@@ -126,7 +126,7 @@ classdef KalmanFilterRegression < handle
             end
             obj.clearHistory();
 
-            k_steps = size(X_train, 2);
+            k_steps = size(Z_train, 2);
 
             for t = 1:k_steps
                 if X_train
@@ -173,7 +173,7 @@ classdef KalmanFilterRegression < handle
             obj.X = X_pred + obj.K * (Z_delayed - obj.H * X_pred);
 
             % Save the Position states only
-            obj.Xpred(:,end+1) = obj.X(1:2,:);
+            obj.Xpred(:,end+1) = obj.X(1:2);
 
             if X_true 
                 obj.Xtrue(:,end+1) = X_true(1:2,:);
@@ -188,7 +188,7 @@ classdef KalmanFilterRegression < handle
                 obj
                 RMSEperTrial logical = true;
             end
-            time = size(obj.Xtrue,2);
+            time = size(obj.Xpred,2);
             figure(1);
             clf(1);
             subplot(1,2,1);

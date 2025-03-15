@@ -38,6 +38,6 @@ Kalman.setInitialPos(handKinematics(1:2,1));
 Kalman.addModel(modelParameters(angle));
 Kalman.predict(spikeRate);
 [X,Y] = Kalman.getHandPos();
-% Kalman.plotValues(false);
+
 
 
