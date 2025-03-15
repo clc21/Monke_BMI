@@ -1,10 +1,4 @@
 classdef KnnMethod < handle
-    % KnnMethod - Streamlined class for decoding reaching angles using KNN
-    %
-    % This class handles preprocessing neural data, extracting features,
-    % and performing KNN classification of reaching angles.
-    % It focuses on core functionality with minimal output.
-    
     properties
         % Data properties
         filteredData           % Data after length standardization
@@ -18,10 +12,10 @@ classdef KnnMethod < handle
         y_test                 % Test labels
         
         % Parameters
-        windowSize = 20        % Window size in ms
-        windowStep = 20        % Window step size in ms
-        gaussianSigma = 30     % Sigma for Gaussian smoothing
-        trainRatio = 0.8       % Training/testing split ratio
+        windowSize = 10        % Window size in ms
+        windowStep = 10        % Window step size in ms
+        gaussianSigma = 40     % Sigma for Gaussian smoothing
+        trainRatio = 0.75       % Training/testing split ratio
         featureType = 'meanSpikeRate'  % Feature type for KNN
     end
     
@@ -30,10 +24,10 @@ classdef KnnMethod < handle
         function obj = KnnMethod(varargin)
             % Parse input arguments
             p = inputParser;
-            p.addParameter('WindowSize', 20, @isnumeric);
-            p.addParameter('WindowStep', 20, @isnumeric);
-            p.addParameter('GaussianSigma', 30, @isnumeric);
-            p.addParameter('TrainRatio', 0.8, @(x) x > 0 && x < 1);
+            p.addParameter('WindowSize', 10, @isnumeric);
+            p.addParameter('WindowStep', 10, @isnumeric);
+            p.addParameter('GaussianSigma', 40, @isnumeric);
+            p.addParameter('TrainRatio', 0.75, @(x) x > 0 && x < 1);
             p.addParameter('FeatureType', 'meanSpikeRate', @(x) ismember(x, {'meanSpikeRate', 'varSpikeRate'}));
             p.parse(varargin{:});
             
@@ -139,8 +133,19 @@ classdef KnnMethod < handle
             % Calculate explained variance ratio
             explainedVar = 100 * eigValues / sum(eigValues);
 
-            % Calculate cumulative variance
+             % Calculate cumulative variance
             cumVar = cumsum(explainedVar);
+
+            % Select the top 93 number of components
+            numComponents = min(93, size(X, 2));
+            
+            % Get projection matrix
+            pcaParams.projectionMatrix = eigVectors(:, 1:numComponents);
+            pcaParams.explainedVar = explainedVar;  % percentage of explained variance
+            pcaParams.numComponents = numComponents;
+            pcaParams.meanX = mean(X, 1);
+            pcaParams.cumVar = cumVar;
+
             
             % Select number of components that explain 95% of variance and ensure
             % we have at least 2 components
@@ -207,13 +212,11 @@ classdef KnnMethod < handle
         end
         
         function [filtered_data] = filterTrial(obj, data, matchLengthMethod)
-            % Check if the data has a 'trial' field
-            if ~isfield(data, 'trial')
-                error('Input data does not have a "trial" field');
-            end
+            % MODIFIED: Now directly handles the trial data structure
+            % without expecting a 'trial' field
             
             % Get dimensions of the trial struct array
-            [n_trials, n_angles] = size(data.trial);
+            [n_trials, n_angles] = size(data);
             
             % Initialize output with the same structure as input
             filtered_data = data;
@@ -225,7 +228,7 @@ classdef KnnMethod < handle
             % Determine all valid lengths
             for trial_idx = 1:n_trials
                 for angle_idx = 1:n_angles
-                    total_time = size(data.trial(trial_idx, angle_idx).spikes, 2);
+                    total_time = size(data(trial_idx, angle_idx).spikes, 2);
                     start_idx = 301; 
                     end_idx = total_time - 100;
                     
@@ -249,7 +252,7 @@ classdef KnnMethod < handle
             % Process all trials
             for trial_idx = 1:n_trials
                 for angle_idx = 1:n_angles
-                    current_trial = data.trial(trial_idx, angle_idx);
+                    current_trial = data(trial_idx, angle_idx);
                     total_time = size(current_trial.spikes, 2);
                     start_idx = 301;
                     end_idx = total_time - 100;
@@ -272,7 +275,7 @@ classdef KnnMethod < handle
                             adjusted_spikes = extracted_spikes(:, 1:target_length);
                         end
                         
-                        filtered_data.trial(trial_idx, angle_idx).spikes = adjusted_spikes;
+                        filtered_data(trial_idx, angle_idx).spikes = adjusted_spikes;
                     end
                     
                     % Process handPos data
@@ -289,26 +292,28 @@ classdef KnnMethod < handle
                             adjusted_handPos = extracted_handPos(:, 1:target_length);
                         end
                         
-                        filtered_data.trial(trial_idx, angle_idx).handPos = adjusted_handPos;
+                        filtered_data(trial_idx, angle_idx).handPos = adjusted_handPos;
                     end
                 end
             end
         end
         
         function [pcaParams_mat, reducedFeatures_mat] = getPCA(obj, data)
-            [n, k] = size(data.trial);           % n = num_trials, k = angles
+            % MODIFIED: Now directly handles the trial data structure
+            
+            [n, k] = size(data);           % n = num_trials, k = angles
             pcaParams_mat = cell(n, k);          % Store PCA parameters for each angle
             reducedFeatures_mat = cell(n, k);    % Store PCA-reduced features
 
             for angle = 1:k
                 for t = 1:n
                     % Call extractWindows with all required arguments
-                    [spikeRate, ~] = obj.extractWindows(data.trial, t, angle);
+                    [spikeRate, ~] = obj.extractWindows(data, t, angle);
                     
                     % Apply gaussian smoothing
                     spikeRate = obj.applyGaussianFilter(spikeRate);
                     
-                    % Apply PCA - Fixed: call applyPCA instead of pcaKNN
+                    % Apply PCA
                     [pcaParams, reducedFeatures] = obj.applyPCA(spikeRate);
 
                     % Store the results
@@ -334,9 +339,6 @@ classdef KnnMethod < handle
             if mod(best_k, 2) == 0
                 best_k = best_k + 1;  % If k is even, add 1 to make it odd
             end
-            % if best_k>5
-            %     best_k = 5;
-            % end 
             
             % Train final model with best k
             final_model = fitcknn(X, y, 'NumNeighbors', best_k);
