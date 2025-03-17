@@ -390,7 +390,7 @@ classdef KnnMethod < handle
             obj.ldaProjection = projMat;
         end
         
-        function [X, y, Xnew, Ynew, labels] = extractKnnFeatureFixed(obj, W, data, varargin)
+        function [X, y, Xnew, Ynew, labels] = extractKnnFeature(obj, W, data, varargin)
             % Extract features for KNN with fixed replication
             if nargin > 2 && ~isempty(varargin) && ischar(varargin{1})
                 featureType = varargin{1};
