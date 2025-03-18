@@ -4,14 +4,13 @@ classdef KalmanFilterRegression < handle
         model
     end
     properties
-        kloop    % time steps trained
         n_trials
         Kx
         Ky
         RMSE_history
         RMSe
         Xpred
-        Xhist    
+        Xhist 
     end
     properties (Access = private)
         A   % state transition matrix (nxn)
@@ -40,9 +39,7 @@ classdef KalmanFilterRegression < handle
             n_neurons = args.n_neurons;
             n_states = 6;  % disp,vel,accel
             obj.n_states = n_states;
-            obj.kloop = 0; 
             obj.sysID = false;
-            obj.n_trials = 0;
 
             % Initialize delay buffer
             obj.delayStp = args.delaySteps;
@@ -136,7 +133,6 @@ classdef KalmanFilterRegression < handle
                 end
             end
             obj.RMSe(end+1) = mean(obj.RMSE_history);
-            obj.n_trials = obj.n_trials+1;
         end
 
         function obj = updateLoop(obj, Z, X_true)
@@ -242,7 +238,6 @@ classdef KalmanFilterRegression < handle
             obj.W = model.W; 
             obj.Q = model.Q; 
             obj.P = model.P;
-            obj.X = model.X;      % Initial state estimate
             obj.K = model.K;
         end
         function [X,Y] = getHandPos(obj)
