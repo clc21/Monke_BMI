@@ -8,21 +8,30 @@ arguments
     args.isStruct logical = false
     args.winSz double = 10  % Window size in ms
     args.winStp double = 10 % Window step in ms
-    args.sigma double = 30  % Standard deviation for Gaussian smoothing (in ms)
+    args.sigma double = 50  % Standard deviation for Gaussian smoothing (in ms)
 end
 
 if args.isStruct
     spike_train = trial(args.trialNumber,args.angle).spikes;
-    pos_array = trial(args.trialNumber,args.angle).handPos;
+    n_time = size(spike_train,2);
+    try
+        pos_array = trial(args.trialNumber,args.angle).handPos;
+    catch
+        pos_array = zeros(3,n_time);
+    end
 else
     spike_train = trial.spikes;
-    pos_array = trial.handPos;
+    n_time = size(spike_train,2);
+    try
+        pos_array = trial.handPos;
+    catch
+        pos_array = zeros(3,n_time);
+    end
 end
 
 dt = 1e-3;                            % sampling period
 n_neurons = size(spike_train,1);      % number of neurons
 n_pos = size(pos_array,1);            % number of directions
-n_time = size(spike_train,2);
 time_range = 1:size(spike_train,2);  % slice of interest
 n_wind = floor((n_time - args.winSz) / args.winStp) + 1;
 
