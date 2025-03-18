@@ -79,22 +79,13 @@ function [decodedPosX, decodedPosY] = positionEstimatorTest(past_current_trial, 
     end
     
     % Extract features from current spike data
-    spikes = past_current_trial.spikes;
-    
-    % Process in 10ms bins (as in training)
-    windowSize = 10;
-    totalTime = size(spikes, 2);
-    
-    % Use the most recent window
-    if totalTime >= windowSize
-        startIdx = totalTime - windowSize + 1;
-        spikeRate = sum(spikes(:, startIdx:totalTime), 2) / (windowSize/1000); % Convert to Hz
-    else
-        spikeRate = sum(spikes, 2) / (totalTime/1000); % Use all available data
-    end
-    
+    [spikes, ~, ~] = extractFeatures(past_current_trial, isStruct=false, winSz=10, winStp=10);
+    % totalTime = size(spikes, 2);
+    % spikeRate = spikes(:,startInd:totalTime);
+    % startInd = totalTime+1;
+    Kalman.setInitialPos(past_current_trial.startHandPos);
     % Update Kalman filter prediction
-    Kalman.predict(spikeRate);
+    Kalman.predict(spikes);
     [decodedPosX, decodedPosY] = Kalman.getHandPos();
     
     % Update decoded position for next call
