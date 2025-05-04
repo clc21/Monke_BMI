@@ -42,7 +42,7 @@ trainingTimeStart = tic;
 fprintf('Training model...\n');
 
 % Train Model
-modelParameters = positionEstimatorTraining_latest(trainingData);
+modelParameters = positionEstimatorTraining(trainingData);
 
 % End training timing: Not in actual file
 trainingTime = toc(trainingTimeStart);
@@ -71,11 +71,11 @@ for tr=1:size(testData,1)
 
             past_current_trial.startHandPos = testData(tr,direc).handPos(1:2,1); 
             
-            if nargout('positionEstimator_latest') == 3
-                [decodedPosX, decodedPosY, newParameters] = positionEstimator_latest(past_current_trial, modelParameters);
+            if nargout('positionEstimator') == 3
+                [decodedPosX, decodedPosY, newParameters] = positionEstimator(past_current_trial, modelParameters);
                 modelParameters = newParameters;
-            elseif nargout('positionEstimator_latest') == 2
-                [decodedPosX, decodedPosY] = positionEstimator_latest(past_current_trial, modelParameters);
+            elseif nargout('positionEstimator') == 2
+                [decodedPosX, decodedPosY] = positionEstimator(past_current_trial, modelParameters);
             end
             
             decodedPos = [decodedPosX; decodedPosY];
@@ -118,7 +118,7 @@ fprintf('Average time per prediction: %.4f seconds\n', testingTime/n_predictions
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%% FUNCTIONS %%%%%%%%%%%%%%%%%%%%%%%%%%%%
-function [decodedPosX, decodedPosY] = positionEstimator_latest(past_current_trial, modelParameters)
+function [decodedPosX, decodedPosY] = positionEstimator(past_current_trial, modelParameters)
     % positionEstimatorTest - Decode hand position from neural data for testing
     %
     % This function predicts the hand position given the neural data and trained models.
@@ -217,7 +217,7 @@ function [decodedPosX, decodedPosY] = positionEstimator_latest(past_current_tria
     decodedPos = [decodedPosX; decodedPosY];
 end
 
-function [modelParameters] = positionEstimatorTraining_latest(trainingData)
+function [modelParameters] = positionEstimatorTraining(trainingData)
     % positionEstimatorTraining - Train models for BMI neural decoding
     % UPDATED TO LATEST IMRPOVEMENT
     % This function trains a KNN model for angle classification and a set of
