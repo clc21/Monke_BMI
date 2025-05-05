@@ -646,7 +646,7 @@ function [W, projMat] = applyLDA(reducedFeatures, X_pca, data)
 end
 
 
-%%%%%%%%%%%%%% KNN REGRESSION CLASS %%%%%%%%%%%%%%%
+%%%%%%%%%%%%%% KNN %%%%%%%%%%%%%%%
 
 function [Ypred, accuracy, best_k] = Pred_accuracy(X, y, Xnew, Ynew) % calculate the best k and predict and calculate accuracy angle classification
     arguments
