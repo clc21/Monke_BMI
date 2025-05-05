@@ -1,4 +1,3 @@
-% Test Script to give to the students, March 2015
 %% Continuous Position Estimator Test Script
 % This function first calls the function "positionEstimatorTraining" to get
 % the relevant modelParameters, and then calls the function
@@ -117,7 +116,7 @@ fprintf('Average time per prediction: %.4f seconds\n', testingTime/n_predictions
 % end
 
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%% FUNCTIONS %%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%% POSITION ESTIMATOR FUNCTIONS %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 function [decodedPosX, decodedPosY] = positionEstimator(past_current_trial, modelParameters)
     % positionEstimatorTest - Decode hand position from neural data for testing
     %
@@ -352,7 +351,10 @@ end
     fprintf('Model training completed successfully.\n');
 end
 
-%%%%%%%%%%%%%%%%%%%% Function %%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%% ALGORITHM FUNCTIONS %%%%%%%%%%%%%%%%%%%%%
+
+
+%%%%%%%%%%%%%% PREPROCESSING FUNCTION %%%%%%%%%%%%%%%
 
 function [filtered_data] = filterTrial(data, matchLengthMethod)
     arguments
@@ -455,32 +457,6 @@ function [filtered_data] = filterTrial(data, matchLengthMethod)
     end
 end
 
-function [X_pca] = inputPCA(spikeRateData)
-
-    arguments
-        spikeRateData cell
-    end
-
-    [n, k] = size(spikeRateData);                       % n = num_trials, k = angles
-    [numFeatures, timeBins] = size(spikeRateData{1,1}); % Get number of features (number of neurons)
-    X_pca = zeros(numFeatures*timeBins, n*k);           % Preallocate matrix (800x784)
-
-    
-    for angle = 1:k
-        for t = 1:n
-            % Extract spike rate matri (nunNeurons x timebins)
-            spikeRate = spikeRateData{t, angle};
-            % Flatten the matric into a column vector
-            flattenedVector = spikeRate(:);
-            % Compute the column index in X_pca
-            colIdx = (angle-1)*n + t;
-            % Assign flattened vector to the corresponding column
-            X_pca(:, colIdx) = flattenedVector;
-            
-        end
-    end
-    
-end
 function [pcaParams_mat, reducedFeatures_mat, spikeRateMat] = getSmoothedSpikeRate(data)
     arguments
         data struct
@@ -512,6 +488,22 @@ function [pcaParams_mat, reducedFeatures_mat, spikeRateMat] = getSmoothedSpikeRa
  
         end
     end
+end
+
+function smoothedSpikeRate = applyGaussianFilter(spikeRate, sigma, winSz)
+arguments
+    spikeRate
+    sigma double = 50  % Standard deviation for Gaussian smoothing (in ms)
+    winSz double = 10  % Window size in ms
+end
+    % Create Gaussian kernel
+    kernelSize = ceil(3 * sigma / winSz) * 2 + 1;  % Ensure it's odd
+    t = linspace(-kernelSize / 2, kernelSize / 2, kernelSize);
+    gaussKernel = exp(-t.^2 / (2 * sigma^2));
+    gaussKernel = gaussKernel / sum(gaussKernel);  % Normalize
+
+    % Apply convolution along the time dimension (2nd axis)
+    smoothedSpikeRate = conv2(spikeRate, gaussKernel, 'same');
 end
 
 function [spikeRate, time_bins] = extractWindows(trial, trialNumber, angle, args)
@@ -554,9 +546,36 @@ for w = 1:n_wind
     % Store time bin center
     time_bins(w) = round((t_start + t_end) / 2);
 end
-
-
 end
+
+
+%%%%%%%%%%%%%% PCA FUNCTION %%%%%%%%%%%%%%%
+function [X_pca] = inputPCA(spikeRateData)
+
+    arguments
+        spikeRateData cell
+    end
+
+    [n, k] = size(spikeRateData);                       % n = num_trials, k = angles
+    [numFeatures, timeBins] = size(spikeRateData{1,1}); % Get number of features (number of neurons)
+    X_pca = zeros(numFeatures*timeBins, n*k);           % Preallocate matrix (800x784)
+
+    
+    for angle = 1:k
+        for t = 1:n
+            % Extract spike rate matri (nunNeurons x timebins)
+            spikeRate = spikeRateData{t, angle};
+            % Flatten the matric into a column vector
+            flattenedVector = spikeRate(:);
+            % Compute the column index in X_pca
+            colIdx = (angle-1)*n + t;
+            % Assign flattened vector to the corresponding column
+            X_pca(:, colIdx) = flattenedVector;
+            
+        end
+    end
+end
+
 
 function [eigVectors,reducedFeatures, meanVec] = applyPCA(X)
 
@@ -601,7 +620,9 @@ function [eigVectors,reducedFeatures, meanVec] = applyPCA(X)
     % grid on;
 
 end
-    
+
+
+%%%%%%%%%%%%%% LDA FUNCTION %%%%%%%%%%%%%%%
 function [W, projMat] = applyLDA(reducedFeatures, X_pca, data)
 
     [n, k] = size(data);
@@ -637,22 +658,8 @@ function [W, projMat] = applyLDA(reducedFeatures, X_pca, data)
     W = projMat' * (X_pca - mean(X_pca,2));
 end
 
-function smoothedSpikeRate = applyGaussianFilter(spikeRate, sigma, winSz)
-arguments
-    spikeRate
-    sigma double = 50  % Standard deviation for Gaussian smoothing (in ms)
-    winSz double = 10  % Window size in ms
-end
-    % Create Gaussian kernel
-    kernelSize = ceil(3 * sigma / winSz) * 2 + 1;  % Ensure it's odd
-    t = linspace(-kernelSize / 2, kernelSize / 2, kernelSize);
-    gaussKernel = exp(-t.^2 / (2 * sigma^2));
-    gaussKernel = gaussKernel / sum(gaussKernel);  % Normalize
 
-    % Apply convolution along the time dimension (2nd axis)
-    smoothedSpikeRate = conv2(spikeRate, gaussKernel, 'same');
-end
-
+%%%%%%%%%%%%%% KNN FUNCTIONS %%%%%%%%%%%%%%%
 
 function [Ypred, accuracy, best_k] = Pred_accuracy(X, y, Xnew, Ynew) % calculate the best k and predict and calculate accuracy angle classification
     arguments
